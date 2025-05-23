@@ -1,23 +1,58 @@
-  // TripParameters.jsx
-  "use client";
+"use client";
 
-  import React from "react";
-  import { useTrip } from "../context/TripContext";
+import React, { useState } from "react";
+import { useTrip } from "../context/TripContext";
 
-  const tripTypes = ["Cultural", "Food", "Adventure", "Relaxation", "Nature"];
+const tripTypes = ["Cultural", "Food", "Adventure", "Relaxation", "Nature"];
 
-  export default function TripParameters() {
-    const { tripParams, updateTripParams } = useTrip();
+export default function TripParameters() {
+  const { tripParams, updateTripParams } = useTrip();
+  const [geminiResponse, setGeminiResponse] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-    // You can add a submit handler here
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      // For now, just log the tripParams or do something with it
-      console.log("Trip submitted:", tripParams);
-      // You can also add any further processing or navigation here
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setError(null);
+  setGeminiResponse(null);
+
+  try {
+    const requestBody = {
+      destination: tripParams.destination,
+      days: tripParams.days,
+      budget: tripParams.budget,
+      people: tripParams.people,
+      type: tripParams.type,
     };
 
-    return (
+    const res = await fetch("/api/gemini", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(`Error from Gemini API: ${data.message || res.statusText}`);
+    }
+
+    setGeminiResponse(data);
+    console.log("Gemini response:", data);
+  } catch (err) {
+    setError(err.message);
+    console.error("Frontend error:", err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  return (
+    <>
       <form
         onSubmit={handleSubmit}
         className="max-w-md mx-auto mt-8 p-6 bg-white rounded-lg shadow-lg border border-[#E5E5E5]"
@@ -99,9 +134,21 @@
         <button
           type="submit"
           className="w-full bg-[#20B2AA] hover:bg-[#1a8c8a] text-white font-semibold py-2 rounded-md transition"
+          disabled={loading}
         >
-          Submit Trip Details
+          {loading ? "Generating..." : "Submit Trip Details"}
         </button>
       </form>
-    );
-  }
+
+      {/* Show Gemini AI response */}
+      {error && <p className="max-w-md mx-auto mt-4 text-red-600">{error}</p>}
+
+      {geminiResponse && (
+        <div className="max-w-md mx-auto mt-6 p-4 bg-[#F0F9F9] border border-[#20B2AA] rounded-md">
+          <h3 className="text-lg font-semibold text-[#1A2E44] mb-2">Gemini AI Suggestions:</h3>
+          <pre className="whitespace-pre-wrap text-[#1A2E44]">{JSON.stringify(geminiResponse, null, 2)}</pre>
+        </div>
+      )}
+    </>
+  );
+}
