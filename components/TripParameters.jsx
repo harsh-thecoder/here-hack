@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useTrip } from "../context/TripContext";
+import ReactMarkdown from "react-markdown";
 
 const tripTypes = ["Cultural", "Food", "Adventure", "Relaxation", "Nature"];
 
@@ -12,44 +13,43 @@ export default function TripParameters() {
   const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  setError(null);
-  setGeminiResponse(null);
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setGeminiResponse(null);
 
-  try {
-    const requestBody = {
-      destination: tripParams.destination,
-      days: tripParams.days,
-      budget: tripParams.budget,
-      people: tripParams.people,
-      type: tripParams.type,
-    };
+    try {
+      const requestBody = {
+        destination: tripParams.destination,
+        days: tripParams.days,
+        budget: tripParams.budget,
+        people: tripParams.people,
+        type: tripParams.type,
+      };
 
-    const res = await fetch("/api/gemini", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-    });
+      const res = await fetch("/api/gemini", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (!res.ok) {
-      throw new Error(`Error from Gemini API: ${data.message || res.statusText}`);
+      if (!res.ok) {
+        throw new Error(`Error from Gemini API: ${data.message || res.statusText}`);
+      }
+
+      setGeminiResponse(data);
+      console.log("Gemini response:", data);
+    } catch (err) {
+      setError(err.message);
+      console.error("Frontend error:", err);
+    } finally {
+      setLoading(false);
     }
-
-    setGeminiResponse(data);
-    console.log("Gemini response:", data);
-  } catch (err) {
-    setError(err.message);
-    console.error("Frontend error:", err);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   return (
     <>
@@ -67,7 +67,11 @@ export default function TripParameters() {
             min={1}
             max={30}
             value={tripParams.days}
-            onChange={(e) => updateTripParams("days", parseInt(e.target.value, 10))}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              if (!isNaN(val)) updateTripParams("days", val);
+              else updateTripParams("days", 1);
+            }}
             className="mt-1 block w-full rounded-md border border-[#20B2AA] p-2 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
           />
         </label>
@@ -82,7 +86,9 @@ export default function TripParameters() {
               max={tripParams.budget[1]}
               value={tripParams.budget[0]}
               onChange={(e) => {
-                const val = Math.min(parseInt(e.target.value, 10) || 0, tripParams.budget[1]);
+                let val = parseInt(e.target.value, 10);
+                if (isNaN(val)) val = 0;
+                val = Math.min(val, tripParams.budget[1]);
                 updateTripParams("budget", [val, tripParams.budget[1]]);
               }}
               className="w-1/2 rounded-md border border-[#20B2AA] p-2 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
@@ -93,7 +99,9 @@ export default function TripParameters() {
               max={10000}
               value={tripParams.budget[1]}
               onChange={(e) => {
-                const val = Math.max(parseInt(e.target.value, 10) || 0, tripParams.budget[0]);
+                let val = parseInt(e.target.value, 10);
+                if (isNaN(val)) val = tripParams.budget[0];
+                val = Math.max(val, tripParams.budget[0]);
                 updateTripParams("budget", [tripParams.budget[0], val]);
               }}
               className="w-1/2 rounded-md border border-[#20B2AA] p-2 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
@@ -109,7 +117,11 @@ export default function TripParameters() {
             min={1}
             max={20}
             value={tripParams.people}
-            onChange={(e) => updateTripParams("people", parseInt(e.target.value, 10))}
+            onChange={(e) => {
+              const val = parseInt(e.target.value, 10);
+              if (!isNaN(val)) updateTripParams("people", val);
+              else updateTripParams("people", 1);
+            }}
             className="mt-1 block w-full rounded-md border border-[#20B2AA] p-2 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
           />
         </label>
@@ -140,15 +152,24 @@ export default function TripParameters() {
         </button>
       </form>
 
-      {/* Show Gemini AI response */}
-      {error && <p className="max-w-md mx-auto mt-4 text-red-600">{error}</p>}
+      {/* Show Gemini AI response or error */}
+      {error && (
+        <p className="max-w-md mx-auto mt-4 text-red-600">
+          {error}
+        </p>
+      )}
 
       {geminiResponse && (
-        <div className="max-w-md mx-auto mt-6 p-4 bg-[#F0F9F9] border border-[#20B2AA] rounded-md">
-          <h3 className="text-lg font-semibold text-[#1A2E44] mb-2">Gemini AI Suggestions:</h3>
-          <pre className="whitespace-pre-wrap text-[#1A2E44]">{JSON.stringify(geminiResponse, null, 2)}</pre>
-        </div>
-      )}
+  <div className="max-w-md mx-auto mt-6 p-4 bg-[#F0F9F9] border border-[#20B2AA] rounded-md">
+    <h3 className="text-lg font-semibold text-[#1A2E44] mb-2">Gemini AI Suggestions:</h3>
+    <div className="prose text-[#1A2E44]">
+      <ReactMarkdown>
+        {geminiResponse.plan}
+      </ReactMarkdown>
+    </div>
+  </div>
+)}
+
     </>
   );
 }
