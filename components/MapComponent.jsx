@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTrip } from "../context/TripContext"; // ✅ use the hook instead
+import TripParameters from "./TripParameters"; // Adjust path if needed
 
-export default function MapComponent() {
+export default function MapComponent({ onConfirm }) {
   const mapRef = useRef(null);
   const [mapInstance, setMapInstance] = useState(null);
   const [uiInstance, setUiInstance] = useState(null);
@@ -12,6 +14,11 @@ export default function MapComponent() {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState([]);
   const [error, setError] = useState(null);
+  const [destinationConfirmed, setDestinationConfirmed] = useState(false);
+
+
+  // ✅ Access trip data and updater from the custom hook
+  const { tripParams, updateTripParams } = useTrip();
 
   // Initialize map
   useEffect(() => {
@@ -51,11 +58,11 @@ export default function MapComponent() {
         );
         const data = await res.json();
         if (data.items) {
-          setSuggestions(data.items.filter((item) => item.position));
-          setError(null);
+        setSuggestions(data.items.filter((item) => item.position));
+        setError(null);
         } else {
-          setSuggestions([]);
-          setError("No suggestions found.");
+        setSuggestions([]);
+        setError(null);  // <-- Clear error instead of showing message
         }
       } catch (err) {
         setSuggestions([]);
@@ -81,17 +88,24 @@ export default function MapComponent() {
     mapInstance.addObject(newMarker);
     setMarker(newMarker);
 
-    mapInstance.getViewModel().setLookAtData({
-      position: location.position,
-      zoom: 14,
-    }, true); // smooth animation
+    mapInstance.getViewModel().setLookAtData(
+      {
+        position: location.position,
+        zoom: 14,
+      },
+      true
+    );
 
     // Create bubble content
     const contentDiv = document.createElement("div");
     contentDiv.innerHTML = `
       <div style="padding: 8px; max-width: 200px;">
-        <p class="text-[#1A2E44] font-semibold mb-1">${location.title || "Selected Location"}</p>
-        <p class="text-sm text-[#1A2E44] mb-2">${location.address.label || "No address available"}</p>
+        <p class="text-[#1A2E44] font-semibold mb-1">${
+          location.title || "Selected Location"
+        }</p>
+        <p class="text-sm text-[#1A2E44] mb-2">${
+          location.address.label || "No address available"
+        }</p>
         <button id="confirmBtn" class="px-4 py-2 bg-[#20B2AA] hover:bg-[#1A2E44] text-white rounded-lg transition-colors duration-300 text-sm">
           Confirm Destination
         </button>
@@ -104,14 +118,21 @@ export default function MapComponent() {
     uiInstance.addBubble(infoBubble);
     setBubble(infoBubble);
 
-    // Attach click event to confirm button after it's added to DOM
     setTimeout(() => {
       const btn = document.getElementById("confirmBtn");
       if (btn) {
         btn.onclick = () => {
-          console.log("Confirmed Destination:", location);
-          alert(`Destination confirmed:\n${location.title || "Unnamed Location"}\n${location.address.label}`);
+        console.log("Confirmed Destination:", location);
+        alert(`Destination confirmed:\n${location.title || "Unnamed Location"}\n${location.address.label}`);
+
+        updateTripParams("destination", location);
+
+        // ✅ Show the TripParameters form now
+        setDestinationConfirmed(true);
+
+        if (onConfirm) onConfirm(location);
         };
+
       }
     }, 0);
   };
@@ -148,7 +169,6 @@ export default function MapComponent() {
     }
   };
 
-  // Handle Enter key in input
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -158,6 +178,9 @@ export default function MapComponent() {
 
   return (
     <div className="relative mt-20">
+      {/* Trip Parameters UI */}
+      {destinationConfirmed && <TripParameters />}
+
       {/* Search Bar */}
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-md">
         <input

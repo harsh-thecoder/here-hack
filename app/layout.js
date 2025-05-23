@@ -1,7 +1,10 @@
+// app/layout.js
+import "./globals.css";
+import ClientProviders from "../components/ClientProviders";
 
 export const metadata = {
-  title: 'Here We Go',
-  description: 'Map-based destination picker using HERE Maps',
+  title: "Here We Go",
+  description: "Map-based destination picker using HERE Maps",
 };
 
 export default function RootLayout({ children }) {
@@ -16,7 +19,9 @@ export default function RootLayout({ children }) {
         <link rel="stylesheet" href="https://js.api.here.com/v3/3.1/mapsjs-ui.css" />
       </head>
       <body>
-        {children}
+        <ClientProviders>
+          {children}
+        </ClientProviders>
       </body>
     </html>
   );
